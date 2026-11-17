@@ -3,7 +3,8 @@
  *
  * Implements modern passwordless OAuth 2.0 Authorization Code Flow with PKCE (S256).
  * Follows Shopify's OpenID Connect dynamic discovery specification.
- * Validates ID tokens via remote JWKS using 'jose'.
+ * Validates ID tokens via remote JWKS using 'jose' (strict signature, issuer, audience, and nonce checks).
+ * Supports silent session renewal using Shopify's documented 'prompt=none' flow.
  * Handles secure session persistence and RP-initiated logout via end_session_endpoint.
  */
 
@@ -17,22 +18,30 @@ const CLIENT_ID =
   import.meta.env.VITE_SHOPIFY_CUSTOMER_CLIENT_ID ||
   "27f4ed41-f86e-4dc3-92c3-a3c7f645a8c0";
 
-const REDIRECT_URI =
+const DEFAULT_REDIRECT_URI =
   import.meta.env.VITE_SHOPIFY_CUSTOMER_REDIRECT_URI ||
   (typeof window !== "undefined"
     ? `${window.location.origin}/account/callback`
     : "https://hs-store-ten.vercel.app/account/callback");
 
 export const CUSTOMER_STORAGE_KEYS = {
+  // Session tokens (persisted in localStorage across tabs)
   ACCESS_TOKEN: "shopify_customer_access_token",
   ID_TOKEN: "shopify_customer_id_token",
   EXPIRES_AT: "shopify_customer_expires_at",
+
+  // Ephemeral OAuth handshake parameters (strictly sessionStorage)
   AUTH_STATE: "shopify_auth_state",
   AUTH_NONCE: "shopify_auth_nonce",
   CODE_VERIFIER: "shopify_code_verifier",
+  REDIRECT_URI: "shopify_auth_redirect_uri",
 };
 
 let cachedOpenIdConfig = null;
+
+// Track in-flight exchange to prevent duplicate code exchange in React Strict Mode / concurrent calls
+let inFlightExchangePromise = null;
+let lastExchangedCode = null;
 
 /**
  * Discover Shopify OpenID Connect configuration dynamically.
@@ -83,11 +92,40 @@ export async function generateCodeChallenge(verifier) {
 }
 
 /**
- * Build the Customer Account API Login URL with PKCE (S256), state and nonce.
+ * Clean up ephemeral OAuth handshake state from sessionStorage.
+ */
+function clearHandshakeStorage() {
+  try {
+    sessionStorage.removeItem(CUSTOMER_STORAGE_KEYS.AUTH_STATE);
+    sessionStorage.removeItem(CUSTOMER_STORAGE_KEYS.AUTH_NONCE);
+    sessionStorage.removeItem(CUSTOMER_STORAGE_KEYS.CODE_VERIFIER);
+    sessionStorage.removeItem(CUSTOMER_STORAGE_KEYS.REDIRECT_URI);
+  } catch {
+    // Ignore restricted environment errors
+  }
+}
+
+/**
+ * Clear customer session credentials from local storage.
+ */
+export function clearCustomerSession() {
+  storage.remove(CUSTOMER_STORAGE_KEYS.ACCESS_TOKEN);
+  storage.remove(CUSTOMER_STORAGE_KEYS.ID_TOKEN);
+  storage.remove(CUSTOMER_STORAGE_KEYS.EXPIRES_AT);
+  clearHandshakeStorage();
+  inFlightExchangePromise = null;
+  lastExchangedCode = null;
+}
+
+/**
+ * Build the Customer Account API Authorization URL with PKCE (S256), state, nonce,
+ * and exact redirect URI tracking.
  * @param {string} [customRedirectUri]
+ * @param {object} [options]
+ * @param {boolean} [options.promptNone=false] Set to true for silent session renewal
  * @returns {Promise<string>}
  */
-export async function buildCustomerAuthUrl(customRedirectUri) {
+export async function buildCustomerAuthUrl(customRedirectUri, options = {}) {
   const config = await getOpenIdConfig();
 
   const state = generateRandomString(32);
@@ -95,19 +133,20 @@ export async function buildCustomerAuthUrl(customRedirectUri) {
   const verifier = generateRandomString(64);
   const challenge = await generateCodeChallenge(verifier);
 
-  const redirectUri = customRedirectUri || REDIRECT_URI;
+  const redirectUri = customRedirectUri || DEFAULT_REDIRECT_URI;
 
-  // Store in sessionStorage (with localStorage fallback)
+  // Store handshake state strictly in sessionStorage
   try {
     sessionStorage.setItem(CUSTOMER_STORAGE_KEYS.AUTH_STATE, state);
     sessionStorage.setItem(CUSTOMER_STORAGE_KEYS.AUTH_NONCE, nonce);
     sessionStorage.setItem(CUSTOMER_STORAGE_KEYS.CODE_VERIFIER, verifier);
-  } catch {
-    // Private mode fallback
+    sessionStorage.setItem(CUSTOMER_STORAGE_KEYS.REDIRECT_URI, redirectUri);
+  } catch (storageErr) {
+    console.error("[CustomerAuth] Failed to write handshake to sessionStorage:", storageErr);
+    throw new Error("Unable to initialize secure session storage in your browser.", {
+      cause: storageErr,
+    });
   }
-  storage.setRaw(CUSTOMER_STORAGE_KEYS.AUTH_STATE, state);
-  storage.setRaw(CUSTOMER_STORAGE_KEYS.AUTH_NONCE, nonce);
-  storage.setRaw(CUSTOMER_STORAGE_KEYS.CODE_VERIFIER, verifier);
 
   const authUrl = new URL(config.authorization_endpoint);
   authUrl.searchParams.set("client_id", CLIENT_ID);
@@ -119,11 +158,17 @@ export async function buildCustomerAuthUrl(customRedirectUri) {
   authUrl.searchParams.set("code_challenge", challenge);
   authUrl.searchParams.set("code_challenge_method", "S256");
 
+  // Documented silent renewal flow for public clients
+  if (options.promptNone) {
+    authUrl.searchParams.set("prompt", "none");
+  }
+
   return authUrl.toString();
 }
 
 /**
  * Initiate customer login flow by redirecting to Shopify-hosted auth page.
+ * @param {string} [customRedirectUri]
  */
 export async function loginWithShopify(customRedirectUri) {
   const authUrl = await buildCustomerAuthUrl(customRedirectUri);
@@ -131,8 +176,25 @@ export async function loginWithShopify(customRedirectUri) {
 }
 
 /**
+ * Initiate silent session renewal using Shopify's documented 'prompt=none' flow.
+ * Must be executed via top-level browser navigation because Shopify disallows iframes.
+ * @param {string} [customRedirectUri]
+ */
+export async function renewCustomerSessionSilent(customRedirectUri) {
+  const authUrl = await buildCustomerAuthUrl(customRedirectUri, { promptNone: true });
+  window.location.assign(authUrl);
+}
+
+/**
  * Complete Shopify OAuth 2.0 PKCE login at /account/callback.
- * Validates state & nonce, exchanges code for tokens, verifies ID token signature via JWKS.
+ *
+ * Guarantees:
+ * 1. Exact same redirect URI used during authorization and token exchange.
+ * 2. Mandatory ID-token signature verification with remote JWKS.
+ * 3. Never swallows signature, issuer, audience, or expiration errors.
+ * 4. Validates the nonce against the generated nonce.
+ * 5. Prevents duplicate code exchanges (React Strict Mode & concurrent executions).
+ * 6. Handles 'login_required' error from silent prompt=none renewals.
  */
 export async function completeCustomerLogin() {
   if (typeof window === "undefined") return false;
@@ -141,110 +203,142 @@ export async function completeCustomerLogin() {
   const code = params.get("code");
   const returnedState = params.get("state");
   const authError = params.get("error");
+  const errorDescription = params.get("error_description");
 
+  // Handle OAuth error parameter
   if (authError) {
-    const errorDesc = params.get("error_description") || authError;
-    throw new Error(errorDesc);
+    clearHandshakeStorage();
+    if (authError === "login_required" || authError === "interaction_required") {
+      clearCustomerSession();
+      const err = new Error("Customer session expired. Please sign in again.");
+      err.code = "LOGIN_REQUIRED";
+      throw err;
+    }
+    throw new Error(errorDescription || authError);
   }
 
   if (!code || !returnedState) {
     throw new Error("Missing authorization code or state parameter.");
   }
 
-  // Retrieve stored handshake parameters
-  let savedState = null;
-  let expectedNonce = null;
-  let verifier = null;
-
-  try {
-    savedState = sessionStorage.getItem(CUSTOMER_STORAGE_KEYS.AUTH_STATE);
-    expectedNonce = sessionStorage.getItem(CUSTOMER_STORAGE_KEYS.AUTH_NONCE);
-    verifier = sessionStorage.getItem(CUSTOMER_STORAGE_KEYS.CODE_VERIFIER);
-  } catch {
-    // Fallback below
+  // De-duplicate if this exact code was already exchanged successfully
+  if (code === lastExchangedCode && isCustomerAuthenticated()) {
+    return true;
   }
 
-  if (!savedState) savedState = storage.getRaw(CUSTOMER_STORAGE_KEYS.AUTH_STATE);
-  if (!expectedNonce) expectedNonce = storage.getRaw(CUSTOMER_STORAGE_KEYS.AUTH_NONCE);
-  if (!verifier) verifier = storage.getRaw(CUSTOMER_STORAGE_KEYS.CODE_VERIFIER);
-
-  if (!savedState || returnedState !== savedState) {
-    throw new Error(
-      "Invalid authentication state. Please return to the store and sign in again."
-    );
+  // If an exchange for this code is already in flight, await the existing promise
+  if (inFlightExchangePromise) {
+    return await inFlightExchangePromise;
   }
 
-  if (!verifier || !expectedNonce) {
-    throw new Error("Login session expired. Please sign in again.");
-  }
-
-  const config = await getOpenIdConfig();
-
-  // Exchange authorization code for tokens
-  const tokenResponse = await fetch(config.token_endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      client_id: CLIENT_ID,
-      redirect_uri: REDIRECT_URI,
-      code,
-      code_verifier: verifier,
-    }),
-  });
-
-  const tokens = await tokenResponse.json();
-
-  if (!tokenResponse.ok) {
-    throw new Error(
-      tokens.error_description ||
-        tokens.error ||
-        "Token exchange failed with Shopify."
-    );
-  }
-
-  if (!tokens.access_token) {
-    throw new Error("Shopify did not return a valid customer access token.");
-  }
-
-  // Verify ID token signature, issuer, audience and nonce if JWKS is available
-  if (tokens.id_token && config.jwks_uri) {
+  inFlightExchangePromise = (async () => {
     try {
-      const jwks = createRemoteJWKSet(new URL(config.jwks_uri));
-      const { payload } = await jwtVerify(tokens.id_token, jwks, {
-        issuer: config.issuer,
-        audience: CLIENT_ID,
+      let savedState = null;
+      let expectedNonce = null;
+      let verifier = null;
+      let savedRedirectUri = null;
+
+      try {
+        savedState = sessionStorage.getItem(CUSTOMER_STORAGE_KEYS.AUTH_STATE);
+        expectedNonce = sessionStorage.getItem(CUSTOMER_STORAGE_KEYS.AUTH_NONCE);
+        verifier = sessionStorage.getItem(CUSTOMER_STORAGE_KEYS.CODE_VERIFIER);
+        savedRedirectUri = sessionStorage.getItem(CUSTOMER_STORAGE_KEYS.REDIRECT_URI);
+      } catch {
+        // Fallback
+      }
+
+      if (!savedState || returnedState !== savedState) {
+        throw new Error(
+          "Invalid authentication state. Possible CSRF attempt or expired login session."
+        );
+      }
+
+      if (!verifier) {
+        throw new Error("Missing PKCE code verifier. Login session may have expired.");
+      }
+
+      if (!expectedNonce) {
+        throw new Error("Missing OpenID nonce. Login session may have expired.");
+      }
+
+      // Use the EXACT redirect URI used when building the authorization request
+      const redirectUriToUse = savedRedirectUri || DEFAULT_REDIRECT_URI;
+
+      const config = await getOpenIdConfig();
+
+      // Exchange authorization code for tokens
+      const tokenResponse = await fetch(config.token_endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          client_id: CLIENT_ID,
+          redirect_uri: redirectUriToUse,
+          code,
+          code_verifier: verifier,
+        }),
       });
 
-      if (payload.nonce !== expectedNonce) {
-        throw new Error("Identity token nonce mismatch. Login rejected.");
+      const tokens = await tokenResponse.json();
+
+      if (!tokenResponse.ok) {
+        throw new Error(
+          tokens.error_description ||
+            tokens.error ||
+            `Token exchange failed with HTTP ${tokenResponse.status}`
+        );
       }
-    } catch (jwkErr) {
-      console.warn("[CustomerAuth] ID Token signature verification warning:", jwkErr);
-      // If error is nonce mismatch, rethrow; otherwise verify issuer matches
-      if (jwkErr.message?.includes("nonce")) {
-        throw jwkErr;
+
+      if (!tokens.access_token) {
+        throw new Error("Shopify did not return a valid customer access token.");
       }
+
+      // Mandatory ID-token signature verification whenever an ID token is returned.
+      // Strict verification: NEVER swallow signature, issuer, audience, or expiration errors.
+      if (tokens.id_token) {
+        if (!config.jwks_uri) {
+          throw new Error("Missing jwks_uri in Shopify OpenID configuration.");
+        }
+
+        const jwks = createRemoteJWKSet(new URL(config.jwks_uri));
+
+        // Rejects login on ANY signature, issuer, audience, or expiration failure
+        const { payload } = await jwtVerify(tokens.id_token, jwks, {
+          issuer: config.issuer,
+          audience: CLIENT_ID,
+        });
+
+        // Mandatory nonce verification
+        if (payload.nonce !== expectedNonce) {
+          throw new Error("Identity token nonce mismatch. Login rejected.");
+        }
+      }
+
+      // Persist session tokens in localStorage
+      storage.setRaw(CUSTOMER_STORAGE_KEYS.ACCESS_TOKEN, tokens.access_token);
+      if (tokens.id_token) {
+        storage.setRaw(CUSTOMER_STORAGE_KEYS.ID_TOKEN, tokens.id_token);
+      }
+      const expiresInSeconds = Number(tokens.expires_in) || 7200;
+      storage.setRaw(
+        CUSTOMER_STORAGE_KEYS.EXPIRES_AT,
+        String(Date.now() + expiresInSeconds * 1000)
+      );
+
+      lastExchangedCode = code;
+
+      // Clean up ephemeral handshake data
+      clearHandshakeStorage();
+
+      return true;
+    } finally {
+      inFlightExchangePromise = null;
     }
-  }
+  })();
 
-  // Persist customer session
-  storage.setRaw(CUSTOMER_STORAGE_KEYS.ACCESS_TOKEN, tokens.access_token);
-  if (tokens.id_token) {
-    storage.setRaw(CUSTOMER_STORAGE_KEYS.ID_TOKEN, tokens.id_token);
-  }
-  const expiresInSeconds = Number(tokens.expires_in) || 7200;
-  storage.setRaw(
-    CUSTOMER_STORAGE_KEYS.EXPIRES_AT,
-    String(Date.now() + expiresInSeconds * 1000)
-  );
-
-  // Clean up temporary OAuth handshake values
-  clearHandshakeStorage();
-
-  return true;
+  return await inFlightExchangePromise;
 }
 
 /**
@@ -274,26 +368,10 @@ export function getCustomerAccessToken() {
 }
 
 /**
- * Clear all customer session tokens and credentials from local storage.
+ * Retrieve the current ID token for RP-initiated logout.
  */
-export function clearCustomerSession() {
-  storage.remove(CUSTOMER_STORAGE_KEYS.ACCESS_TOKEN);
-  storage.remove(CUSTOMER_STORAGE_KEYS.ID_TOKEN);
-  storage.remove(CUSTOMER_STORAGE_KEYS.EXPIRES_AT);
-  clearHandshakeStorage();
-}
-
-function clearHandshakeStorage() {
-  try {
-    sessionStorage.removeItem(CUSTOMER_STORAGE_KEYS.AUTH_STATE);
-    sessionStorage.removeItem(CUSTOMER_STORAGE_KEYS.AUTH_NONCE);
-    sessionStorage.removeItem(CUSTOMER_STORAGE_KEYS.CODE_VERIFIER);
-  } catch {
-    // Ignore
-  }
-  storage.remove(CUSTOMER_STORAGE_KEYS.AUTH_STATE);
-  storage.remove(CUSTOMER_STORAGE_KEYS.AUTH_NONCE);
-  storage.remove(CUSTOMER_STORAGE_KEYS.CODE_VERIFIER);
+export function getCustomerIdToken() {
+  return storage.getRaw(CUSTOMER_STORAGE_KEYS.ID_TOKEN);
 }
 
 /**
@@ -301,7 +379,7 @@ function clearHandshakeStorage() {
  * @param {string} [postLogoutRedirectUri]
  */
 export async function logoutCustomer(postLogoutRedirectUri) {
-  const idToken = storage.getRaw(CUSTOMER_STORAGE_KEYS.ID_TOKEN);
+  const idToken = getCustomerIdToken();
   const targetRedirect =
     postLogoutRedirectUri ||
     (typeof window !== "undefined"

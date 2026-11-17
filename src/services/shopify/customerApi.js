@@ -18,6 +18,7 @@ let cachedApiEndpoint = null;
 
 /**
  * Dynamically discover the Customer Account GraphQL endpoint.
+ * Preserves the documented Shopify discovery endpoint: /.well-known/customer-account-api
  */
 export async function getCustomerApiEndpoint() {
   if (cachedApiEndpoint) return cachedApiEndpoint;
@@ -27,7 +28,7 @@ export async function getCustomerApiEndpoint() {
 
   if (!response.ok) {
     throw new Error(
-      `Unable to discover Customer Account API (HTTP ${response.status})`
+      `Unable to discover Customer Account API endpoint (HTTP ${response.status})`
     );
   }
 
@@ -44,8 +45,9 @@ export async function getCustomerApiEndpoint() {
 
 /**
  * Reusable authenticated Customer Account API GraphQL fetcher.
+ * Preserves the documented GraphQL authorization header ('Authorization: <access_token>').
  * @param {string} query GraphQL query or mutation string
- * @param {object} variables Query/mutation variables
+ * @param {object} [variables={}] Query/mutation variables
  * @returns {Promise<any>}
  */
 export async function customerFetch(query, variables = {}) {
@@ -57,30 +59,59 @@ export async function customerFetch(query, variables = {}) {
 
   const endpoint = await getCustomerApiEndpoint();
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token,
-    },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
-  });
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+      body: JSON.stringify({
+        query,
+        variables,
+      }),
+    });
+  } catch (networkErr) {
+    console.error("[Customer API Network Error]:", networkErr);
+    throw new Error(
+      "Network connection to Customer Account API failed. Please check your internet connection.",
+      { cause: networkErr }
+    );
+  }
+
+  // Handle HTTP errors
+  if (!response.ok) {
+    let httpErrorMsg = `Customer Account API request failed with HTTP ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson?.errors?.length) {
+        httpErrorMsg = errJson.errors.map((e) => e.message).join(", ");
+      } else if (errJson?.message) {
+        httpErrorMsg = errJson.message;
+      }
+    } catch {
+      // Body is not JSON
+    }
+
+    if (response.status === 401) {
+      clearCustomerSession();
+    }
+
+    console.error("[Customer API HTTP Error]:", httpErrorMsg, { query, variables });
+    throw new Error(httpErrorMsg);
+  }
 
   const result = await response.json();
 
-  if (!response.ok || result.errors) {
-    const errorMsg =
-      result.errors?.map((err) => err.message).join(", ") ||
-      `Customer Account API request failed (HTTP ${response.status})`;
+  // Handle GraphQL level errors
+  if (result.errors?.length) {
+    const errorMsg = result.errors.map((err) => err.message).join(", ");
 
-    // If token is invalid or expired on the server, clear local session
     if (
-      response.status === 401 ||
       errorMsg.toLowerCase().includes("unauthorized") ||
       errorMsg.toLowerCase().includes("invalid access token") ||
+      errorMsg.toLowerCase().includes("access denied") ||
       errorMsg.toLowerCase().includes("expired")
     ) {
       clearCustomerSession();
@@ -137,16 +168,21 @@ export async function getCustomerProfile() {
 }
 
 /* ==========================================================================
-   2. Customer Orders
+   2. Customer Orders with Pagination & Correct Currency
    ========================================================================== */
 
 const CUSTOMER_ORDERS_QUERY = `
-  query GetCustomerOrders($first: Int!) {
+  query GetCustomerOrders($first: Int!, $after: String) {
     customer {
-      orders(first: $first, sortKey: PROCESSED_AT, reverse: true) {
+      orders(first: $first, after: $after, sortKey: PROCESSED_AT, reverse: true) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
         nodes {
           id
           name
+          number
           processedAt
           financialStatus
           fulfillmentStatus
@@ -178,22 +214,32 @@ const CUSTOMER_ORDERS_QUERY = `
 
 /**
  * Retrieve past orders belonging to the authenticated customer.
- * @param {number} [limit=10]
+ * Implements cursor-based pagination and preserves exact API-provided currencies (no hardcoded INR fallback).
+ * @param {number} [limit=10] Maximum orders per page (1 to 50)
+ * @param {string|null} [after=null] Pagination cursor
+ * @returns {Promise<{ orders: Array, pageInfo: { hasNextPage: boolean, endCursor: string|null } }>}
  */
-export async function getCustomerOrders(limit = 10) {
-  const data = await customerFetch(CUSTOMER_ORDERS_QUERY, { first: limit });
-  const rawOrders = data?.customer?.orders?.nodes || [];
+export async function getCustomerOrders(limit = 10, after = null) {
+  const safeLimit = Math.min(Math.max(1, Number(limit) || 10), 50);
 
-  return rawOrders.map((order) => ({
+  const data = await customerFetch(CUSTOMER_ORDERS_QUERY, {
+    first: safeLimit,
+    after: after || null,
+  });
+
+  const ordersConnection = data?.customer?.orders;
+  const rawOrders = ordersConnection?.nodes || [];
+
+  const orders = rawOrders.map((order) => ({
     id: order.id,
     name: order.name,
-    orderNumber: order.name?.replace(/^#/, "") || order.id,
+    orderNumber: order.name?.replace(/^#/, "") || String(order.number || order.id),
     processedAt: order.processedAt,
     financialStatus: order.financialStatus || "PENDING",
     fulfillmentStatus: order.fulfillmentStatus || "UNFULFILLED",
     totalPrice: {
-      amount: order.totalPrice?.amount || "0",
-      currencyCode: order.totalPrice?.currencyCode || "INR",
+      amount: order.totalPrice?.amount ?? null,
+      currencyCode: order.totalPrice?.currencyCode ?? "",
     },
     lineItems: (order.lineItems?.nodes || []).map((item) => ({
       id: item.id,
@@ -202,11 +248,19 @@ export async function getCustomerOrders(limit = 10) {
       quantity: item.quantity,
       image: item.image?.url || null,
       price: {
-        amount: item.totalPrice?.amount || "0",
-        currencyCode: item.totalPrice?.currencyCode || "INR",
+        amount: item.totalPrice?.amount ?? null,
+        currencyCode: item.totalPrice?.currencyCode ?? "",
       },
     })),
   }));
+
+  return {
+    orders,
+    pageInfo: {
+      hasNextPage: Boolean(ordersConnection?.pageInfo?.hasNextPage),
+      endCursor: ordersConnection?.pageInfo?.endCursor || null,
+    },
+  };
 }
 
 /* ==========================================================================
@@ -214,7 +268,7 @@ export async function getCustomerOrders(limit = 10) {
    ========================================================================== */
 
 const CUSTOMER_ADDRESSES_QUERY = `
-  query GetCustomerAddresses {
+  query GetCustomerAddresses($first: Int!) {
     customer {
       defaultAddress {
         id
@@ -230,7 +284,7 @@ const CUSTOMER_ADDRESSES_QUERY = `
         phoneNumber
         countryCode
       }
-      addresses(first: 20) {
+      addresses(first: $first) {
         nodes {
           id
           formatted
@@ -252,9 +306,12 @@ const CUSTOMER_ADDRESSES_QUERY = `
 
 /**
  * Retrieve all saved addresses and the default address.
+ * @param {number} [limit=20]
  */
-export async function getCustomerAddresses() {
-  const data = await customerFetch(CUSTOMER_ADDRESSES_QUERY);
+export async function getCustomerAddresses(limit = 20) {
+  const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 50);
+  const data = await customerFetch(CUSTOMER_ADDRESSES_QUERY, { first: safeLimit });
+
   const defaultAddress = data?.customer?.defaultAddress || null;
   const addresses = data?.customer?.addresses?.nodes || [];
 
