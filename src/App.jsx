@@ -10,6 +10,7 @@ import MainLayout from "./components/layout/MainLayout";
 
 // Home is kept eager for immediate LCP paint
 import Home from "./pages/Home";
+import AccountCallback from "./pages/AccountCallback";
 
 // Lazy-loaded routes for performance & code splitting
 const Products = lazy(() => import("./pages/Products"));
@@ -46,6 +47,10 @@ function App() {
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/wishlist" element={<Wishlist />} />
                 <Route path="/account" element={<Account />} />
+                <Route
+                  path="/account/callback"
+                  element={<AccountCallback />}
+                />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
