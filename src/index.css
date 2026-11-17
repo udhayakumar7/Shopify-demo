@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Carattere&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-brand-base: #FFF8F3;
+  --color-brand-secondary: #F4DCD6;
+  --color-brand-primary: #7B1E3A;
+  --color-brand-primary-hover: #63172e;
+  --color-brand-gold: #C5A059;
+  --color-brand-gold-light: #E7D4AD;
+  --color-brand-gold-dark: #A4813E;
+  --color-brand-burgundy: #521225;
+  --color-brand-burgundy-dark: #380C19;
+  --color-brand-ivory: #FFFDF9;
+  --color-brand-warm-gray: #8A7B78;
+  --color-brand-border: #EADBCE;
+
+
+  --font-fancy: "Carattere", cursive;
+
+  --font-serif: "Montserrat", Georgia, Cambria, serif;
+  --font-sans: "Montserrat", system-ui, -apple-system, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-brand-base);
+  color: var(--color-brand-burgundy-dark);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
