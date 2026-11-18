@@ -8,12 +8,12 @@ import {
   isCustomerAuthenticated,
   logoutCustomer,
   clearCustomerSession,
-} from "../services/shopify/customer";
+} from "../services/shopify/customer.js";
 import {
   getCustomerProfile,
   getCustomerOrders,
   getCustomerAddresses,
-} from "../services/shopify/customerApi";
+} from "../services/shopify/customerApi.js";
 import CustomerProfile from "../components/account/CustomerProfile";
 import CustomerOrders from "../components/account/CustomerOrders";
 import CustomerAddresses from "../components/account/CustomerAddresses";

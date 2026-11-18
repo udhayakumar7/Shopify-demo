@@ -1,8 +1,8 @@
 /**
  * Shopify Search Service Layer
  */
-import { shopifyFetch } from "./client";
-import { SEARCH_PRODUCTS_QUERY } from "./queries";
+import { shopifyFetch } from "./client.js";
+import { SEARCH_PRODUCTS_QUERY } from "./queries.js";
 
 /**
  * Search products with query keyword.

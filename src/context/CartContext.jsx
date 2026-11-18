@@ -10,7 +10,7 @@ import {
   addToCart as apiAddToCart,
   updateCartLine as apiUpdateCartLine,
   removeCartLine as apiRemoveCartLine,
-} from "../services/shopify/cart";
+} from "../services/shopify/cart.js";
 
 export const CartContext = createContext(null);
 
@@ -75,43 +75,49 @@ export function CartProvider({ children }) {
   /**
    * Update line quantity.
    */
-  const updateQuantity = useCallback(async (lineId, quantity) => {
-    try {
-      setUpdatingLineId(lineId);
-      const updatedCart = await apiUpdateCartLine(lineId, quantity);
-      setCart(updatedCart);
-      return updatedCart;
-    } catch (err) {
-      toast.error(err.message || "Could not update quantity");
-      throw err;
-    } finally {
-      setUpdatingLineId(null);
-    }
-  }, []);
+  const updateQuantity = useCallback(
+    async (lineId, quantity) => {
+      try {
+        setUpdatingLineId(lineId);
+        const updatedCart = await apiUpdateCartLine(lineId, quantity, cart?.id);
+        setCart(updatedCart);
+        return updatedCart;
+      } catch (err) {
+        toast.error(err.message || "Could not update quantity");
+        throw err;
+      } finally {
+        setUpdatingLineId(null);
+      }
+    },
+    [cart]
+  );
 
   /**
    * Remove item from cart.
    */
-  const removeItem = useCallback(async (lineId) => {
-    try {
-      setUpdatingLineId(lineId);
-      const updatedCart = await apiRemoveCartLine(lineId);
-      setCart(updatedCart);
-      toast.success("Item removed from bag", {
-        style: {
-          background: "#FFF8F3",
-          color: "#521225",
-          border: "1px solid #EADBCE",
-        },
-      });
-      return updatedCart;
-    } catch (err) {
-      toast.error(err.message || "Could not remove item");
-      throw err;
-    } finally {
-      setUpdatingLineId(null);
-    }
-  }, []);
+  const removeItem = useCallback(
+    async (lineId) => {
+      try {
+        setUpdatingLineId(lineId);
+        const updatedCart = await apiRemoveCartLine(lineId, cart?.id);
+        setCart(updatedCart);
+        toast.success("Item removed from bag", {
+          style: {
+            background: "#FFF8F3",
+            color: "#521225",
+            border: "1px solid #EADBCE",
+          },
+        });
+        return updatedCart;
+      } catch (err) {
+        toast.error(err.message || "Could not remove item");
+        throw err;
+      } finally {
+        setUpdatingLineId(null);
+      }
+    },
+    [cart]
+  );
 
   const totalQuantity = cart?.totalQuantity || 0;
   const subtotal = cart?.cost?.subtotalAmount?.amount || "0.0";

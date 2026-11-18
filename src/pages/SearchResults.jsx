@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
-import { searchProducts } from "../services/shopify/search";
+import { searchProducts } from "../services/shopify/search.js";
 import ProductCard from "../components/products/ProductCard";
 import QuickViewModal from "../components/products/QuickViewModal";
 import Breadcrumb from "../components/common/Breadcrumb";
@@ -82,7 +82,7 @@ export default function SearchResults() {
                 type="search"
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
-                placeholder="Search Kanjivaram, silk, wedding sarees..."
+                placeholder="Search sarees, kurtis, silk, cotton, wedding..."
                 className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#EADBCE] rounded-md text-xs sm:text-sm text-[#380C19] focus:outline-none focus:border-[#7B1E3A] shadow-2xs"
               />
             </div>
@@ -93,7 +93,7 @@ export default function SearchResults() {
 
           {!loading && !error && query && (
             <p className="text-xs text-[#8A7B78] mt-3">
-              Found <strong className="text-[#7B1E3A]">{products.length}</strong> {products.length === 1 ? "weave" : "weaves"} matching your search.
+              Found <strong className="text-[#7B1E3A]">{products.length}</strong> {products.length === 1 ? "creation" : "creations"} matching your search.
             </p>
           )}
         </div>
@@ -123,14 +123,17 @@ export default function SearchResults() {
               <Search className="w-7 h-7" />
             </div>
             <h3 className="font-serif text-xl font-medium text-[#380C19] mb-2">
-              No matching sarees found
+              No matching creations found
             </h3>
             <p className="text-xs sm:text-sm text-[#8A7B78] mb-6 leading-relaxed">
-              We couldn't find any items matching "{query}". Try searching with terms like "Silk", "Kanjivaram", or browse our full collection.
+              We couldn't find any items matching "{query}". Try searching with terms like "Silk", "Kurti", "Cotton", or explore our collections.
             </p>
-            <div className="flex justify-center gap-3">
-              <Link to="/products">
-                <Button variant="primary">Browse All Sarees</Button>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link to="/collections/sarees">
+                <Button variant="primary">Explore Sarees</Button>
+              </Link>
+              <Link to="/collections/kurtis">
+                <Button variant="outline">Explore Kurtis</Button>
               </Link>
             </div>
           </div>
@@ -138,7 +141,7 @@ export default function SearchResults() {
 
         {/* Results Grid */}
         {!loading && !error && products.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {products.map((product) => (
               <ProductCard
                 key={product.id}

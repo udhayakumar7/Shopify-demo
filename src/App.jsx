@@ -20,6 +20,7 @@ const SearchResults = lazy(() => import("./pages/SearchResults"));
 const Cart = lazy(() => import("./pages/Cart"));
 const Wishlist = lazy(() => import("./pages/Wishlist"));
 const Account = lazy(() => import("./pages/Account"));
+const PolicyPage = lazy(() => import("./pages/PolicyPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function PageLoader() {
@@ -51,6 +52,10 @@ function App() {
                   path="/account/callback"
                   element={<AccountCallback />}
                 />
+                <Route path="/about" element={<PolicyPage defaultType="about" />} />
+                <Route path="/contact" element={<PolicyPage defaultType="contact" />} />
+                <Route path="/faq" element={<PolicyPage defaultType="faq" />} />
+                <Route path="/policies/:type" element={<PolicyPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

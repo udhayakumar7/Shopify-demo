@@ -1,7 +1,7 @@
 /**
  * GraphQL mutations for Shopify Cart operations.
  */
-import { CART_FIELDS } from "./queries";
+import { CART_FIELDS } from "./queries.js";
 
 export const CREATE_CART_MUTATION = `
   mutation CartCreate($lines: [CartLineInput!]) {

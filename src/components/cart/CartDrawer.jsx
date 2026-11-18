@@ -127,16 +127,17 @@ export default function CartDrawer() {
                     Your bag is empty
                   </h3>
                   <p className="text-xs text-[#8A7B78] max-w-xs mx-auto mb-6">
-                    Explore our exquisite collection of handwoven silks and timeless sarees.
+                    Explore our exquisite collection of handwoven silks and artisanal kurtis.
                   </p>
-                  <Button
-                    onClick={closeCart}
-                    variant="primary"
-                    size="md"
-                    className="w-full"
-                  >
-                    Start Shopping
-                  </Button>
+                  <Link to="/collections/sarees" onClick={closeCart} className="block w-full">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      className="w-full"
+                    >
+                      Start Shopping
+                    </Button>
+                  </Link>
                 </div>
               ) : (
                 lines.map((item) => (

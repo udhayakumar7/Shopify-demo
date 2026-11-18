@@ -81,14 +81,14 @@ export default function SearchModal({ isOpen, onClose }) {
                 type="search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search Kanjivaram silk, bridal sarees, wedding weaves..."
+                placeholder="Search luxury sarees, kurtis, silk, cotton, wedding..."
                 className="w-full bg-transparent text-[#380C19] placeholder-[#8A7B78] text-sm sm:text-base focus:outline-none"
               />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm("")}
-                  className="p-1 text-[#8A7B78] hover:text-[#7B1E3A] mr-2"
+                  className="p-1 text-[#8A7B78] hover:text-[#7B1E3A] mr-2 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -96,7 +96,7 @@ export default function SearchModal({ isOpen, onClose }) {
               <button
                 type="button"
                 onClick={handleClose}
-                className="p-1 text-[#8A7B78] hover:text-[#7B1E3A] border-l border-[#EADBCE] pl-3"
+                className="p-1 text-[#8A7B78] hover:text-[#7B1E3A] border-l border-[#EADBCE] pl-3 cursor-pointer"
               >
                 <span className="text-xs font-medium">ESC</span>
               </button>
@@ -111,12 +111,12 @@ export default function SearchModal({ isOpen, onClose }) {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    "Kanjivaram",
                     "Silk Sarees",
-                    "Wedding Saree",
-                    "Gold Zari",
-                    "Royal Blue",
-                    "Bridal Edit",
+                    "Cotton Kurtis",
+                    "Banarasi Sarees",
+                    "Designer Kurtis",
+                    "Wedding Edit",
+                    "Kanjivaram",
                   ].map((tag) => (
                     <button
                       key={tag}
@@ -137,17 +137,17 @@ export default function SearchModal({ isOpen, onClose }) {
                 {loading && (
                   <div className="py-10 text-center text-[#8A7B78] flex items-center justify-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-[#7B1E3A]" />
-                    <span className="text-sm">Searching authentic weaves...</span>
+                    <span className="text-sm">Searching authentic creations...</span>
                   </div>
                 )}
 
                 {!loading && results.length === 0 && (
                   <div className="py-12 text-center px-4">
                     <p className="text-sm font-medium text-[#380C19]">
-                      No matching sarees found for "{searchTerm}"
+                      No matching items found for "{searchTerm}"
                     </p>
                     <p className="text-xs text-[#8A7B78] mt-1">
-                      Try searching with different keywords like "Silk", "Kanjivaram" or browse all products.
+                      Try searching with different keywords like "Silk", "Kurti", "Cotton" or explore all collections.
                     </p>
                   </div>
                 )}

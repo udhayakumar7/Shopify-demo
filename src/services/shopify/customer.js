@@ -9,17 +9,22 @@
  */
 
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import { storage } from "../../utils/storage";
+import { storage } from "../../utils/storage.js";
+
+const env =
+  (typeof import.meta !== "undefined" && import.meta.env) ||
+  (typeof globalThis !== "undefined" ? globalThis.process?.env : null) ||
+  {};
 
 const STORE_DOMAIN =
-  import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || "harini-zyh1hfkx.myshopify.com";
+  env.VITE_SHOPIFY_STORE_DOMAIN || "harini-zyh1hfkx.myshopify.com";
 
 const CLIENT_ID =
-  import.meta.env.VITE_SHOPIFY_CUSTOMER_CLIENT_ID ||
+  env.VITE_SHOPIFY_CUSTOMER_CLIENT_ID ||
   "27f4ed41-f86e-4dc3-92c3-a3c7f645a8c0";
 
 const DEFAULT_REDIRECT_URI =
-  import.meta.env.VITE_SHOPIFY_CUSTOMER_REDIRECT_URI ||
+  env.VITE_SHOPIFY_CUSTOMER_REDIRECT_URI ||
   (typeof window !== "undefined"
     ? `${window.location.origin}/account/callback`
     : "https://hs-store-ten.vercel.app/account/callback");
@@ -70,7 +75,21 @@ export function generateRandomString(length = 43) {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
   let result = "";
   const randomValues = new Uint8Array(length);
-  window.crypto.getRandomValues(randomValues);
+  const cryptoObj =
+    typeof window !== "undefined"
+      ? window.crypto
+      : typeof globalThis !== "undefined"
+      ? globalThis.crypto
+      : null;
+
+  if (cryptoObj?.getRandomValues) {
+    cryptoObj.getRandomValues(randomValues);
+  } else {
+    for (let i = 0; i < length; i++) {
+      randomValues[i] = Math.floor(Math.random() * 256);
+    }
+  }
+
   for (let i = 0; i < length; i++) {
     result += charset[randomValues[i] % charset.length];
   }
@@ -83,9 +102,21 @@ export function generateRandomString(length = 43) {
 export async function generateCodeChallenge(verifier) {
   const encoder = new TextEncoder();
   const data = encoder.encode(verifier);
-  const digest = await window.crypto.subtle.digest("SHA-256", data);
+  const cryptoObj =
+    typeof window !== "undefined"
+      ? window.crypto
+      : typeof globalThis !== "undefined"
+      ? globalThis.crypto
+      : null;
 
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+  const digest = await cryptoObj.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(digest);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+
+  return btoa(binary)
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");

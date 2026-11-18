@@ -9,10 +9,15 @@
 import {
   getCustomerAccessToken,
   clearCustomerSession,
-} from "./customer";
+} from "./customer.js";
+
+const env =
+  (typeof import.meta !== "undefined" && import.meta.env) ||
+  (typeof globalThis !== "undefined" ? globalThis.process?.env : null) ||
+  {};
 
 const STORE_DOMAIN =
-  import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || "harini-zyh1hfkx.myshopify.com";
+  env.VITE_SHOPIFY_STORE_DOMAIN || "harini-zyh1hfkx.myshopify.com";
 
 let cachedApiEndpoint = null;
 

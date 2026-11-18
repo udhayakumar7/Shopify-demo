@@ -1,10 +1,16 @@
+
 /**
  * Centralized Shopify Storefront API GraphQL Client
  */
 
-const STORE_DOMAIN = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
-const STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN;
-const API_VERSION = import.meta.env.VITE_SHOPIFY_API_VERSION || "2026-10";
+const env =
+  typeof import.meta !== "undefined" && import.meta.env
+    ? import.meta.env
+    : (typeof globalThis !== "undefined" ? globalThis.process?.env : null) || {};
+
+const STORE_DOMAIN = env.VITE_SHOPIFY_STORE_DOMAIN;
+const STOREFRONT_TOKEN = env.VITE_SHOPIFY_STOREFRONT_TOKEN;
+const API_VERSION = env.VITE_SHOPIFY_API_VERSION || "2026-10";
 
 if (!STORE_DOMAIN || !STOREFRONT_TOKEN) {
   console.warn(
@@ -15,10 +21,7 @@ if (!STORE_DOMAIN || !STOREFRONT_TOKEN) {
 const SHOPIFY_URL = `https://${STORE_DOMAIN}/api/${API_VERSION}/graphql.json`;
 
 /**
- * Execute a GraphQL query or mutation against Shopify Storefront API.
- * @param {string} query
- * @param {object} variables
- * @returns {Promise<any>}
+ * Execute Shopify Storefront API GraphQL query or mutation.
  */
 export async function shopifyFetch(query, variables = {}) {
   try {
@@ -40,7 +43,8 @@ export async function shopifyFetch(query, variables = {}) {
       const errorMessage =
         result.errors?.map((err) => err.message).join(", ") ||
         `Shopify API request failed with HTTP ${response.status}`;
-      console.error("[Shopify GraphQL Error]:", errorMessage, { query, variables });
+
+      console.error("[Shopify GraphQL Error]:", errorMessage);
       throw new Error(errorMessage);
     }
 
@@ -51,6 +55,82 @@ export async function shopifyFetch(query, variables = {}) {
   }
 }
 
+/**
+ * Get Shopify store domain.
+ */
 export function getShopDomain() {
   return STORE_DOMAIN;
+}
+
+/**
+ * Fetch all collections for homepage categories.
+ */
+export async function getCollections(first = 20) {
+  const query = `
+    query GetCollections($first: Int!) {
+      collections(first: $first, sortKey: TITLE) {
+        edges {
+          node {
+            id
+            title
+            handle
+            description
+            image {
+              url
+              altText
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch(query, { first });
+
+  return data.collections.edges.map(({ node }) => node);
+}
+
+/**
+ * Fetch a single collection using its handle.
+ */
+export async function getCollectionByHandle(handle) {
+  const query = `
+    query GetCollectionByHandle($handle: String!) {
+      collection(handle: $handle) {
+        id
+        title
+        handle
+        description
+        image {
+          url
+          altText
+        }
+        products(first: 20) {
+          edges {
+            node {
+              id
+              title
+              handle
+              description
+              availableForSale
+              featuredImage {
+                url
+                altText
+              }
+              priceRange {
+                minVariantPrice {
+                  amount
+                  currencyCode
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch(query, { handle });
+
+  return data.collection;
 }

@@ -77,11 +77,11 @@ export default function Cart() {
               Your Shopping Bag
             </h1>
             <p className="text-xs sm:text-sm text-[#8A7B78] mt-1">
-              Review your selected handloom sarees before proceeding to checkout.
+              Review your selected handloom sarees and artisanal kurtis before proceeding to checkout.
             </p>
           </div>
           <span className="text-xs font-semibold text-[#7B1E3A] bg-[#F4DCD6] px-3.5 py-1.5 rounded-full w-fit">
-            {totalQuantity} {totalQuantity === 1 ? "saree" : "sarees"} in bag
+            {totalQuantity} {totalQuantity === 1 ? "item" : "items"} in bag
           </span>
         </div>
 
@@ -89,9 +89,9 @@ export default function Cart() {
           <EmptyState
             icon={ShoppingBag}
             title="Your Shopping Bag is Empty"
-            description="You haven't added any handcrafted sarees yet. Explore our royal Kanjivaram and bridal silks to begin."
-            actionText="Browse Handcrafted Sarees"
-            actionLink="/products"
+            description="You haven't added any handcrafted pieces yet. Explore our royal Kanjivaram sarees and artisanal kurtis to begin."
+            actionText="Explore Collections"
+            actionLink="/collections/sarees"
           />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">

@@ -1,16 +1,16 @@
 /**
  * Shopify Cart Service Layer with expired cart recovery and error handling.
  */
-import { shopifyFetch } from "./client";
-import { GET_CART_QUERY } from "./queries";
+import { shopifyFetch } from "./client.js";
+import { GET_CART_QUERY } from "./queries.js";
 import {
   CREATE_CART_MUTATION,
   ADD_TO_CART_MUTATION,
   UPDATE_CART_LINES_MUTATION,
   REMOVE_CART_LINES_MUTATION,
   APPLY_DISCOUNT_MUTATION,
-} from "./mutations";
-import { storage } from "../../utils/storage";
+} from "./mutations.js";
+import { storage } from "../../utils/storage.js";
 
 const CART_ID_KEY = "shopify_cart_id";
 
@@ -127,14 +127,15 @@ export async function addToCart(variantId, quantity = 1) {
  * Update line item quantity.
  * @param {string} lineId
  * @param {number} quantity
+ * @param {string|null} explicitCartId
  * @returns {Promise<object>}
  */
-export async function updateCartLine(lineId, quantity) {
-  const cartId = getStoredCartId();
+export async function updateCartLine(lineId, quantity, explicitCartId = null) {
+  const cartId = explicitCartId || getStoredCartId();
   if (!cartId) throw new Error("No active cart found.");
 
   if (quantity <= 0) {
-    return removeCartLine(lineId);
+    return removeCartLine(lineId, cartId);
   }
 
   const data = await shopifyFetch(UPDATE_CART_LINES_MUTATION, {
@@ -151,10 +152,11 @@ export async function updateCartLine(lineId, quantity) {
 /**
  * Remove line item from cart.
  * @param {string} lineId
+ * @param {string|null} explicitCartId
  * @returns {Promise<object>}
  */
-export async function removeCartLine(lineId) {
-  const cartId = getStoredCartId();
+export async function removeCartLine(lineId, explicitCartId = null) {
+  const cartId = explicitCartId || getStoredCartId();
   if (!cartId) throw new Error("No active cart found.");
 
   const data = await shopifyFetch(REMOVE_CART_LINES_MUTATION, {
@@ -171,10 +173,11 @@ export async function removeCartLine(lineId) {
 /**
  * Apply discount code to cart.
  * @param {string} discountCode
+ * @param {string|null} explicitCartId
  * @returns {Promise<object>}
  */
-export async function applyDiscountCode(discountCode) {
-  const cartId = getStoredCartId();
+export async function applyDiscountCode(discountCode, explicitCartId = null) {
+  const cartId = explicitCartId || getStoredCartId();
   if (!cartId) throw new Error("No active cart found.");
 
   const data = await shopifyFetch(APPLY_DISCOUNT_MUTATION, {

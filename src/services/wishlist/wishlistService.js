@@ -1,7 +1,7 @@
 /**
  * Wishlist storage service for guest and customer sessions.
  */
-import { storage } from "../../utils/storage";
+import { storage } from "../../utils/storage.js";
 
 const WISHLIST_KEY = "harini_wishlist_items";
 
@@ -20,10 +20,15 @@ export const wishlistService = {
           title: product.title,
           handle: product.handle,
           featuredImage: product.featuredImage,
+          images: product.images,
           priceRange: product.priceRange,
           compareAtPriceRange: product.compareAtPriceRange,
           availableForSale: product.availableForSale,
           productType: product.productType,
+          options: product.options,
+          variants: product.variants,
+          tags: product.tags,
+          metafields: product.metafields,
           addedAt: new Date().toISOString(),
         },
       ];

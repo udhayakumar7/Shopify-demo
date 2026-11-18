@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { searchProducts } from "../services/shopify/search";
+import { searchProducts } from "../services/shopify/search.js";
 
 export function useSearch(query, debounceMs = 300) {
   const [results, setResults] = useState([]);

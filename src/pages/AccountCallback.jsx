@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { completeCustomerLogin } from "../services/shopify/customer";
+import { completeCustomerLogin } from "../services/shopify/customer.js";
 import logo from "../assets/logo.png";
 import toast from "react-hot-toast";
 import { AlertCircle, ArrowLeft, RotateCw, ShieldCheck } from "lucide-react";
