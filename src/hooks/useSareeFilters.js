@@ -206,6 +206,19 @@ export function getProductOccasion(product) {
 }
 
 /**
+ * Match occasion filters flexibly (e.g. "Wedding Wear" matches "Wedding" or "Wedding Wear").
+ */
+export function matchesOccasion(selected, productOccasion) {
+  if (!selected || !productOccasion) return false;
+  const s = String(selected).trim().toLowerCase();
+  const p = String(productOccasion).trim().toLowerCase();
+  if (s === p) return true;
+  const sBase = s.replace(/\s+wear$/i, "");
+  const pBase = p.replace(/\s+wear$/i, "");
+  return sBase === pBase;
+}
+
+/**
  * Extract Work Type (Zari Work, Embroidery, Printed, Plain, Woven)
  */
 export function getProductWorkType(product) {
@@ -273,7 +286,7 @@ export function isNewArrivalProduct(product) {
     tags.some((t) => /new[-_ ]?arrival|^new$/i.test(t)) ||
     metafields.some(
       (m) =>
-        m?.key === "is_new_arrival" &&
+        (m?.key === "new_arrival" || m?.key === "is_new_arrival") &&
         String(m?.value).toLowerCase() === "true"
     ) ||
     metafields.some((m) => m?.key === "badge" && /new/i.test(m?.value || ""))
@@ -292,7 +305,7 @@ export function isBestSellerProduct(product) {
     tags.some((t) => /best[-_ ]?seller|^bestseller$/i.test(t)) ||
     metafields.some(
       (m) =>
-        m?.key === "is_best_seller" &&
+        (m?.key === "best_seller" || m?.key === "is_best_seller") &&
         String(m?.value).toLowerCase() === "true"
     ) ||
     metafields.some((m) => m?.key === "badge" && /best/i.test(m?.value || ""))
@@ -496,7 +509,7 @@ export function useSareeFilters(products = []) {
         if (
           !occ ||
           !activeFilters.occasion.some(
-            (o) => o.toLowerCase() === occ.toLowerCase()
+            (o) => matchesOccasion(o, occ)
           )
         ) {
           return false;

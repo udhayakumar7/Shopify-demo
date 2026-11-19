@@ -77,6 +77,8 @@ export const PRODUCT_CARD_FIELDS = `
       { namespace: "shopify", key: "age-group" }
       { namespace: "shopify", key: "size-type" }
       { namespace: "shopify", key: "target-gender" }
+      { namespace: "custom", key: "best_seller" }
+      { namespace: "custom", key: "new_arrival" }
       { namespace: "custom", key: "is_new_arrival" }
       { namespace: "custom", key: "is_best_seller" }
       { namespace: "custom", key: "badge" }
@@ -296,6 +298,8 @@ export const GET_PRODUCT_DETAILS_QUERY = `
           { namespace: "custom", key: "fit_type" }
           { namespace: "custom", key: "sleeve_type" }
           { namespace: "custom", key: "set_type" }
+          { namespace: "custom", key: "best_seller" }
+          { namespace: "custom", key: "new_arrival" }
           { namespace: "custom", key: "is_new_arrival" }
           { namespace: "custom", key: "is_best_seller" }
           { namespace: "custom", key: "badge" }

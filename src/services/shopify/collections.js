@@ -26,6 +26,12 @@ const HANDLE_ALIASES = {
 
 // Virtual category collections powered by product type query when no dedicated collection exists
 const VIRTUAL_COLLECTIONS = {
+  all: {
+    title: "All Collections",
+    description:
+      "Explore our complete range of handcrafted pure silk, cotton, banarasi sarees and artisanal kurtis for every occasion.",
+    query: "",
+  },
   sarees: {
     title: "All Sarees",
     description:
@@ -235,3 +241,10 @@ export async function getCollectionByHandle(
     },
   };
 }
+
+
+export const INSTAGRAM_POSTS = [
+  "https://www.instagram.com/p/XXXXXXXXXXX/",
+  "https://www.instagram.com/p/YYYYYYYYYYY/",
+  "https://www.instagram.com/reel/ZZZZZZZZZZZ/",
+];

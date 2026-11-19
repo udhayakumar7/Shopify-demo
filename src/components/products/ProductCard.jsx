@@ -90,7 +90,7 @@ export default function ProductCard({ product, onQuickView }) {
     tags.some((t) => /new[-_ ]?arrival|^new$/i.test(t)) ||
     metafields.some(
       (m) =>
-        m?.key === "is_new_arrival" &&
+        (m?.key === "new_arrival" || m?.key === "is_new_arrival") &&
         String(m?.value).toLowerCase() === "true"
     ) ||
     metafields.some(
@@ -101,7 +101,7 @@ export default function ProductCard({ product, onQuickView }) {
     tags.some((t) => /best[-_ ]?seller|^bestseller$/i.test(t)) ||
     metafields.some(
       (m) =>
-        m?.key === "is_best_seller" &&
+        (m?.key === "best_seller" || m?.key === "is_best_seller") &&
         String(m?.value).toLowerCase() === "true"
     ) ||
     metafields.some(

@@ -213,7 +213,7 @@ export default function ProductDetails() {
     tags.some((t) => /new[-_ ]?arrival|^new$/i.test(t)) ||
     metafields.some(
       (m) =>
-        m?.key === "is_new_arrival" &&
+        (m?.key === "new_arrival" || m?.key === "is_new_arrival") &&
         String(m?.value).toLowerCase() === "true"
     ) ||
     metafields.some((m) => m?.key === "badge" && /new/i.test(m?.value || ""));
@@ -222,7 +222,7 @@ export default function ProductDetails() {
     tags.some((t) => /best[-_ ]?seller|^bestseller$/i.test(t)) ||
     metafields.some(
       (m) =>
-        m?.key === "is_best_seller" &&
+        (m?.key === "best_seller" || m?.key === "is_best_seller") &&
         String(m?.value).toLowerCase() === "true"
     ) ||
     metafields.some((m) => m?.key === "badge" && /best/i.test(m?.value || ""));

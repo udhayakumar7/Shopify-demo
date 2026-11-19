@@ -55,6 +55,7 @@ export default function CollectionProducts() {
   const isKurti = useMemo(() => {
     if (!handle) return false;
     const h = handle.toLowerCase();
+    if (h === "all") return false;
     if (
       h.includes("kurti") ||
       h === "cotton-kurtis" ||
@@ -72,6 +73,7 @@ export default function CollectionProducts() {
     if (isKurti) return false;
     if (!handle) return false;
     const h = handle.toLowerCase();
+    if (h === "all") return true;
     if (
       h.includes("saree") ||
       h === "silk-sarees" ||

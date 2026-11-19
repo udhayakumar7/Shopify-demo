@@ -127,3 +127,8 @@ export const INSTAGRAM_GALLERY = [
     link: "https://instagram.com",
   },
 ];
+export const INSTAGRAM_POSTS = [
+  "https://www.instagram.com/p/XXXXXXXXXXX/",
+  "https://www.instagram.com/p/YYYYYYYYYYY/",
+  "https://www.instagram.com/reel/ZZZZZZZZZZZ/",
+];

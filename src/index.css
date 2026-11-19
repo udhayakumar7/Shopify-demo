@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Carattere&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -20,7 +20,7 @@
 
 
   --font-fancy: "Carattere", cursive;
-
+  --font-head: "Fraunces", serif;
   --font-serif: "Onest", Georgia, Cambria, serif;
   --font-sans: "Onest", system-ui, -apple-system, sans-serif;
 }

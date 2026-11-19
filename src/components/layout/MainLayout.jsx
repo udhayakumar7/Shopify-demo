@@ -19,7 +19,7 @@ export default function MainLayout({ children }) {
           },
         }}
       />
-      <AnnouncementBar />
+      {/* <AnnouncementBar /> */}
       <Header />
       <main className="flex-1 flex flex-col">{children}</main>
       <CartDrawer />

@@ -33,55 +33,39 @@ const SLOT_CONFIGS = [
   },
 ];
 
+// Centered row of circles
 const GRID_CLASSES =
-  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-8 sm:gap-x-5 lg:gap-x-6";
+  "flex flex-wrap justify-center gap-x-5 gap-y-8 sm:gap-x-8 lg:gap-x-10";
+
+// Medium size: 2 per row on mobile, fixed size on larger screens
+const ITEM_WIDTH = "w-[40%] sm:w-40 lg:w-44";
 
 function CategoryCard({ item }) {
   const card = (
     <>
-      {/* Same size for every card */}
-      <div className="relative w-full" style={{ aspectRatio: "362 / 440" }}>
-        {/* Gradient box */}
-        <div
-          className="absolute inset-x-0 bottom-0 top-[16%] overflow-hidden rounded-xl shadow-[0_8px_16px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-500 group-hover:shadow-[0_14px_22px_-10px_rgba(0,0,0,0.5)]"
-          style={{ backgroundImage: item.gradient }}
-        >
-          {/* Soft pattern, right side */}
-          <img
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="pointer-events-none absolute -right-[18%] -top-[10%] w-[90%] opacity-20 mix-blend-screen"
-            style={{
-              maskImage:
-                "linear-gradient(to top, transparent 0%, #000 34%), linear-gradient(to right, transparent 0%, #000 28%)",
-              WebkitMaskImage:
-                "linear-gradient(to top, transparent 0%, #000 34%), linear-gradient(to right, transparent 0%, #000 28%)",
-              maskComposite: "intersect",
-              WebkitMaskComposite: "source-in",
-            }}
-            src="/weaves/cards/pattern.webp"
-          />
+      {/* Circle */}
+      <div
+        className="relative aspect-square w-full overflow-hidden rounded-full shadow-[0_8px_16px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-500 group-hover:shadow-[0_14px_22px_-10px_rgba(0,0,0,0.5)]"
+        style={{ backgroundImage: item.gradient }}
+      >
+        {/* Soft pattern */}
+        <img
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="pointer-events-none absolute -right-[18%] -top-[10%] w-[90%] opacity-20 mix-blend-screen"
+          src="/weaves/cards/pattern.webp"
+        />
 
-          {/* Thin white inner border */}
-          <div className="pointer-events-none absolute inset-x-[6%] inset-y-[7%] rounded-lg border border-white/80" />
+        {/* Thin white inner ring */}
+        <div className="pointer-events-none absolute inset-[6%] rounded-full border border-white/80" />
 
-          {/* Coming soon badge */}
-          {!item.isAvailable && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-2">
-              <span className="rounded-full bg-[#C5A059] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#240711] shadow-md">
-                Coming Soon
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Model cutout, centered, pops above the box */}
+        {/* Model, kept inside the circle */}
         <img
           alt={item.name}
           loading="lazy"
           decoding="async"
-          className={`pointer-events-none absolute inset-0 h-full w-full origin-bottom object-contain object-bottom drop-shadow-[0_6px_10px_rgba(0,0,0,0.25)] transition-transform duration-500 ease-out group-hover:scale-[1.03] ${!item.isAvailable ? "opacity-70 grayscale-[25%]" : ""
+          className={`pointer-events-none absolute bottom-0 left-1/2 h-[92%] w-auto max-w-none -translate-x-1/2 object-contain object-bottom transition-transform duration-500 ease-out group-hover:scale-105 ${!item.isAvailable ? "opacity-70 grayscale-[25%]" : ""
             }`}
           src={item.modelImage}
           onError={(e) => {
@@ -90,11 +74,20 @@ function CategoryCard({ item }) {
             }
           }}
         />
+
+        {/* Coming soon badge */}
+        {!item.isAvailable && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-full bg-black/40 p-2">
+            <span className="rounded-full bg-[#C5A059] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[#240711] shadow-md">
+              Coming Soon
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Name only */}
+      {/* Name */}
       <h3
-        className={`mt-3 line-clamp-1 text-center font-serif text-base font-medium transition-colors sm:text-lg ${item.isAvailable
+        className={`mt-3 line-clamp-1 text-center font-serif text-sm font-medium transition-colors sm:text-base ${item.isAvailable
             ? "text-[#380C19] group-hover:text-[#7B1E3A]"
             : "text-[#8A7B78]"
           }`}
@@ -107,12 +100,14 @@ function CategoryCard({ item }) {
   return item.isAvailable ? (
     <Link
       to={item.href}
-      className="group block w-full rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C5A059] focus-visible:ring-offset-4 focus-visible:ring-offset-[#FFF8F3]"
+      className={`group block ${ITEM_WIDTH} rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C5A059] focus-visible:ring-offset-4 focus-visible:ring-offset-[#FFF8F3]`}
     >
       {card}
     </Link>
   ) : (
-    <div className="group block w-full cursor-default select-none">{card}</div>
+    <div className={`group block ${ITEM_WIDTH} cursor-default select-none`}>
+      {card}
+    </div>
   );
 }
 
@@ -164,15 +159,12 @@ export default function ShopByCategories() {
         {loading && (
           <div className={GRID_CLASSES}>
             {Array.from({ length: TOTAL_GRIDS }).map((_, i) => (
-              <div key={i} className="space-y-3">
-                <div
-                  className="w-full overflow-hidden rounded-xl"
-                  style={{ aspectRatio: "362 / 440" }}
-                >
+              <div key={i} className={`space-y-3 ${ITEM_WIDTH}`}>
+                <div className="aspect-square w-full overflow-hidden rounded-full">
                   <Skeleton className="h-full w-full" />
                 </div>
                 <div className="flex justify-center">
-                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-20" />
                 </div>
               </div>
             ))}

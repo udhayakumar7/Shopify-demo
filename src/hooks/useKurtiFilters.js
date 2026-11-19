@@ -5,6 +5,7 @@ import {
   getCategoryMetafieldLabels,
   isNewArrivalProduct,
   isBestSellerProduct,
+  matchesOccasion,
 } from "./useSareeFilters.js";
 
 export { getCategoryMetafieldLabels };
@@ -1000,7 +1001,7 @@ export function useKurtiFilters(products = []) {
         if (
           !occ ||
           !activeFilters.occasion.some(
-            (o) => o.toLowerCase() === occ.toLowerCase()
+            (o) => matchesOccasion(o, occ)
           )
         ) {
           return false;

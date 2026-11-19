@@ -1,7 +1,9 @@
 import React, { useEffect } from "react";
 import HeroBanner from "../components/home/HeroBanner";
 import ShopByCategories from "../components/home/ShopByCategories";
-import FeaturedEdits from "../components/home/FeaturedEdits";
+import ShopByOccasion from "../components/home/ShopByOccasion";
+import BestSellers from "../components/home/BestSellers";
+import NewArrivals from "../components/home/NewArrivals";
 import PromotionalBanners from "../components/home/PromotionalBanners";
 import WhyShopWithUs from "../components/home/WhyShopWithUs";
 import Testimonials from "../components/home/Testimonials";
@@ -18,12 +20,16 @@ export default function Home() {
     <div className="w-full">
       <HeroBanner />
       <ShopByCategories />
-      <FeaturedEdits />
-      <PromotionalBanners />
+
+      <BestSellers />
+      <ShopByOccasion />
+      <NewArrivals />
+
       <WhyShopWithUs />
+      <PromotionalBanners />
       <Testimonials />
       <SocialGallery />
-      <Newsletter />
+      {/* <Newsletter /> */}
     </div>
   );
 }
